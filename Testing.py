@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 # Import useful libraries
 import numpy as np
@@ -10,7 +10,7 @@ get_ipython().magic('matplotlib inline')
 from scipy.interpolate import interp1d
 
 
-# In[3]:
+# In[61]:
 
 #define testing function
 def q(x):
@@ -32,20 +32,28 @@ def grad(x,y):
     return(dx,dy)
 
 #define peak finding function
-def find(x,y,n=100000):                       #specify default size of n for reasonable speed runs
+def find(x,y,n=100000,filt=0.5):                        #specify default size of n for reasonable speed runs
+    
+    
+    
     x_int = np.linspace(x.min(),x.max(),n)    #create x-array of size n
     interp = interp1d(x,y,kind='cubic')
-    y_int = interp(x_int)                     #create y-array smoothly interpolated
-    r=np.where(np.diff(np.sign(y_int))!=0)*1  #find indices of y_int where the value changes sign
+    y_int = interp(x_int)
+    dx,dy=grad(x_int,y_int)
+    dx_int = np.linspace(dx.min(),dx.max(),n)    #create x-array of size n
+    dinterp = interp1d(dx,dy,kind='cubic')
+    dy_int = dinterp(dx_int)                     #create y-array smoothly interpolated
+    r=np.where(np.diff(np.sign(dy_int))!=0)*1  #find indices of y_int where the value changes sign
     r=r[0]    
-    dx,dy=grad(x_int,y_int)                   #differentiate arrays
-    dx_int = np.linspace(dx.min(),dx.max(),n)
-    d_interp = interp1d(dx,dy,kind='cubic')
-    dy_int = d_interp(dx_int)                 #repeat interpolation steps
+    d2x,d2y=grad(dx_int,dy_int)                   #differentiate arrays
+    d2x_int = np.linspace(d2x.min(),d2x.max(),n)
+    d2_interp = interp1d(d2x,d2y,kind='cubic')
+    d2y_int = d2_interp(d2x_int)                 #repeat interpolation steps
     peaks=[]
+    y_max_list=y_int[r]
     for i in r:
-        if dy_int[i]<0:                       #as y_int and dy_int are the same size, dy_int[i] is the gradient of y at y_int[i]
-            peaks.append(x_int[i])            #record x position of the peak
+        if d2y_int[i]<0 and y_int[i] >= filt*y_max_list.max():                       #as y_int and dy_int are the same size, dy_int[i] is the gradient of y at y_int[i]
+            peaks.append(dx_int[i])            #record x position of the peak
     peaks=np.array(peaks)
     return(peaks)
     
@@ -53,7 +61,7 @@ def find(x,y,n=100000):                       #specify default size of n for rea
 #calcuate gradients and peaks
 dx,dy=grad(x,q(x))
 d2x,d2y=grad(dx,dy)
-peaks=find(dx,dy)
+peaks=find(x,y)
 
 #plot example functions and manually differantiated gradients
 fig,ax=plt.subplots(figsize=(20,10))
@@ -79,12 +87,12 @@ plt.show()
 print(peaks, peaks+np.sqrt(3))
 
 
-# In[272]:
+# In[ ]:
 
 
 
 
-# In[275]:
+# In[56]:
 
 #define easy subset function
 def sub(x,y,low,upp):
@@ -95,9 +103,7 @@ x,y=np.loadtxt("C14_1_10Dil_ex1.csv",delimiter=",",unpack=1)
 x,y=sub(x,y,150,250)
 
 #calcuate gradients and peaks
-dx,dy=grad(x,y)
-d2x,d2y=grad(dx,dy)
-peaks=find(dx,dy)
+peaks=find(x,y)
 
 #plot
 fig,ax=plt.subplots(figsize=(20,10))
@@ -115,14 +121,49 @@ plt.show()
 
 
 
-# In[ ]:
+# In[57]:
+
+def box(x,y,w=3):
+    l=len(x)
+    x2=np.linspace(x[w],x[l-(w+1)],(l-2*w))
+    #print(x,x2)
+    y2=[]
+    for i in range(len(x2)):
+        #print(i,x2[i],y[i],y[i+2*w])
+        y2.append(np.mean(y[i:i+2*w]))
+    y2=np.array(y2)
+    return(x2,y2)
+    
+    
+    
+x=np.arange(20)
+y=3*x**2
+x2,y2=box(x,y)
+
+
+fig,ax=plt.subplots(figsize=(20,10))
+ax.plot(x,y,'ro')
+ax.plot(x2,y2,'g--')
+plt.show()
 
 
 
 
-# In[ ]:
+# In[60]:
 
+fig,ax=plt.subplots(figsize=(20,10))
+x,y=np.loadtxt("C14_1_10Dil_ex1.csv",delimiter=",",unpack=1)
+x,y=sub(x,y,150,250)
+x2,y2=box(x,y,3)
 
+peaks=find(x,y,filt=1)
+p2=find(x2,y2,filt=1)
+ax.vlines(peaks,y.min(),y.max())
+ax.vlines(p2,y.min(),y.max(),colors='g')
+
+ax.plot(x,y,'g--')
+ax.plot(x2,y2,'r-')
+plt.show()
 
 
 # In[ ]:
